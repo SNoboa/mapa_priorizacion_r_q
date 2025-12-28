@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Mapa de Secciones de Ríos y Quebradas Priorizados</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/ZonificacinMicrocuencaRoSanPedro_2.js"></script>
+        <script src="data/ZonificacinMicrocuencaRioChiche_3.js"></script>
+        <script src="data/ZonificacinMicrocuencaMonjas_4.js"></script>
+        <script src="data/ZonificacinMicrocuencaMachngara_5.js"></script>
+        <script src="data/RosyQuebradasPriorizados_6.js"></script>
+        <script src="data/Delimitacin_Microcuencas_Priorizadas_7.js"></script>
+        <script src="data/RosyQuebradasPriorizados_8.js"></script>
+        <script src="data/SeccionesPriorizadasMCH_9.js"></script>
+        <script src="data/SeccionesPriorizadasMMA_10.js"></script>
+        <script src="data/SeccionesPriorizadasMMO_11.js"></script>
+        <script src="data/SeccionesPriorizadasMSP_12.js"></script>
+        <script src="data/PMCuerposPriorizadosMO_13.js"></script>
+        <script src="data/PMCuerposPriorizadosSP_14.js"></script>
+        <script src="data/PMCuerposPriorizadosMA_15.js"></script>
+        <script src="data/PMCuerposPriorizadosCH_16.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-0.33312813520159135,-78.66295775572054],[-0.0008246630138509421,-78.13740711938922]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var title = new L.Control({'position':'topleft'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Mapa de Secciones de Ríos y Quebradas Priorizados</h2>';
+        };
+        title.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_OpenStreetMap_0');
+        map.getPane('pane_OpenStreetMap_0').style.zIndex = 400;
+        var layer_OpenStreetMap_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OpenStreetMap_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OpenStreetMap_0;
+        map.createPane('pane_EsriSatelite_1');
+        map.getPane('pane_EsriSatelite_1').style.zIndex = 401;
+        var layer_EsriSatelite_1 = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            pane: 'pane_EsriSatelite_1',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 18
+        });
+        layer_EsriSatelite_1;
+        map.addLayer(layer_EsriSatelite_1);
+        function pop_ZonificacinMicrocuencaRoSanPedro_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Zona</th>\
+                        <td class="visible-with-data" id="Zona">' + (feature.properties['Zona'] !== null ? autolinker.link(String(feature.properties['Zona']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Rango_Cota</th>\
+                        <td class="visible-with-data" id="Rango_Cota">' + (feature.properties['Rango_Cota'] !== null ? autolinker.link(String(feature.properties['Rango_Cota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ZonificacinMicrocuencaRoSanPedro_2_0(feature) {
+            switch(String(feature.properties['Zona'])) {
+                case 'ALTA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRoSanPedro_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'MEDIA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRoSanPedro_2',
+                opacity: 1,
+                color: 'rgba(255,253,0,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,252,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'BAJA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRoSanPedro_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,255,60,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ZonificacinMicrocuencaRoSanPedro_2');
+        map.getPane('pane_ZonificacinMicrocuencaRoSanPedro_2').style.zIndex = 402;
+        map.getPane('pane_ZonificacinMicrocuencaRoSanPedro_2').style['mix-blend-mode'] = 'normal';
+        var layer_ZonificacinMicrocuencaRoSanPedro_2 = new L.geoJson(json_ZonificacinMicrocuencaRoSanPedro_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ZonificacinMicrocuencaRoSanPedro_2',
+            layerName: 'layer_ZonificacinMicrocuencaRoSanPedro_2',
+            pane: 'pane_ZonificacinMicrocuencaRoSanPedro_2',
+            onEachFeature: pop_ZonificacinMicrocuencaRoSanPedro_2,
+            style: style_ZonificacinMicrocuencaRoSanPedro_2_0,
+        });
+        bounds_group.addLayer(layer_ZonificacinMicrocuencaRoSanPedro_2);
+        map.addLayer(layer_ZonificacinMicrocuencaRoSanPedro_2);
+        function pop_ZonificacinMicrocuencaRioChiche_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Zona</th>\
+                        <td class="visible-with-data" id="Zona">' + (feature.properties['Zona'] !== null ? autolinker.link(String(feature.properties['Zona']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Rango_Cota</th>\
+                        <td class="visible-with-data" id="Rango_Cota">' + (feature.properties['Rango_Cota'] !== null ? autolinker.link(String(feature.properties['Rango_Cota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ZonificacinMicrocuencaRioChiche_3_0(feature) {
+            switch(String(feature.properties['Zona'])) {
+                case 'ALTA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRioChiche_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'MEDIA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRioChiche_3',
+                opacity: 1,
+                color: 'rgba(255,253,0,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,252,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'BAJA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaRioChiche_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,255,60,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ZonificacinMicrocuencaRioChiche_3');
+        map.getPane('pane_ZonificacinMicrocuencaRioChiche_3').style.zIndex = 403;
+        map.getPane('pane_ZonificacinMicrocuencaRioChiche_3').style['mix-blend-mode'] = 'normal';
+        var layer_ZonificacinMicrocuencaRioChiche_3 = new L.geoJson(json_ZonificacinMicrocuencaRioChiche_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ZonificacinMicrocuencaRioChiche_3',
+            layerName: 'layer_ZonificacinMicrocuencaRioChiche_3',
+            pane: 'pane_ZonificacinMicrocuencaRioChiche_3',
+            onEachFeature: pop_ZonificacinMicrocuencaRioChiche_3,
+            style: style_ZonificacinMicrocuencaRioChiche_3_0,
+        });
+        bounds_group.addLayer(layer_ZonificacinMicrocuencaRioChiche_3);
+        map.addLayer(layer_ZonificacinMicrocuencaRioChiche_3);
+        function pop_ZonificacinMicrocuencaMonjas_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Zona</th>\
+                        <td class="visible-with-data" id="Zona">' + (feature.properties['Zona'] !== null ? autolinker.link(String(feature.properties['Zona']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Rango_Cota</th>\
+                        <td class="visible-with-data" id="Rango_Cota">' + (feature.properties['Rango_Cota'] !== null ? autolinker.link(String(feature.properties['Rango_Cota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ZonificacinMicrocuencaMonjas_4_0(feature) {
+            switch(String(feature.properties['Zona'])) {
+                case 'ALTA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMonjas_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'MEDIA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMonjas_4',
+                opacity: 1,
+                color: 'rgba(255,253,0,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,252,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'BAJA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMonjas_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,255,60,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ZonificacinMicrocuencaMonjas_4');
+        map.getPane('pane_ZonificacinMicrocuencaMonjas_4').style.zIndex = 404;
+        map.getPane('pane_ZonificacinMicrocuencaMonjas_4').style['mix-blend-mode'] = 'normal';
+        var layer_ZonificacinMicrocuencaMonjas_4 = new L.geoJson(json_ZonificacinMicrocuencaMonjas_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ZonificacinMicrocuencaMonjas_4',
+            layerName: 'layer_ZonificacinMicrocuencaMonjas_4',
+            pane: 'pane_ZonificacinMicrocuencaMonjas_4',
+            onEachFeature: pop_ZonificacinMicrocuencaMonjas_4,
+            style: style_ZonificacinMicrocuencaMonjas_4_0,
+        });
+        bounds_group.addLayer(layer_ZonificacinMicrocuencaMonjas_4);
+        map.addLayer(layer_ZonificacinMicrocuencaMonjas_4);
+        function pop_ZonificacinMicrocuencaMachngara_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Zona</th>\
+                        <td class="visible-with-data" id="Zona">' + (feature.properties['Zona'] !== null ? autolinker.link(String(feature.properties['Zona']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Rango_Cota</th>\
+                        <td class="visible-with-data" id="Rango_Cota">' + (feature.properties['Rango_Cota'] !== null ? autolinker.link(String(feature.properties['Rango_Cota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ZonificacinMicrocuencaMachngara_5_0(feature) {
+            switch(String(feature.properties['Zona'])) {
+                case 'ALTA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMachngara_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'MEDIA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMachngara_5',
+                opacity: 1,
+                color: 'rgba(255,253,0,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,252,0,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+                case 'BAJA':
+                    return {
+                pane: 'pane_ZonificacinMicrocuencaMachngara_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,255,60,0.5019607843137255)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ZonificacinMicrocuencaMachngara_5');
+        map.getPane('pane_ZonificacinMicrocuencaMachngara_5').style.zIndex = 405;
+        map.getPane('pane_ZonificacinMicrocuencaMachngara_5').style['mix-blend-mode'] = 'normal';
+        var layer_ZonificacinMicrocuencaMachngara_5 = new L.geoJson(json_ZonificacinMicrocuencaMachngara_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ZonificacinMicrocuencaMachngara_5',
+            layerName: 'layer_ZonificacinMicrocuencaMachngara_5',
+            pane: 'pane_ZonificacinMicrocuencaMachngara_5',
+            onEachFeature: pop_ZonificacinMicrocuencaMachngara_5,
+            style: style_ZonificacinMicrocuencaMachngara_5_0,
+        });
+        bounds_group.addLayer(layer_ZonificacinMicrocuencaMachngara_5);
+        map.addLayer(layer_ZonificacinMicrocuencaMachngara_5);
+        function pop_RosyQuebradasPriorizados_6(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RosyQuebradasPriorizados_6_0() {
+            return {
+                pane: 'pane_RosyQuebradasPriorizados_6',
+                opacity: 1,
+                color: 'rgba(0,255,246,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_RosyQuebradasPriorizados_6');
+        map.getPane('pane_RosyQuebradasPriorizados_6').style.zIndex = 406;
+        map.getPane('pane_RosyQuebradasPriorizados_6').style['mix-blend-mode'] = 'normal';
+        var layer_RosyQuebradasPriorizados_6 = new L.geoJson(json_RosyQuebradasPriorizados_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RosyQuebradasPriorizados_6',
+            layerName: 'layer_RosyQuebradasPriorizados_6',
+            pane: 'pane_RosyQuebradasPriorizados_6',
+            onEachFeature: pop_RosyQuebradasPriorizados_6,
+            style: style_RosyQuebradasPriorizados_6_0,
+        });
+        bounds_group.addLayer(layer_RosyQuebradasPriorizados_6);
+        map.addLayer(layer_RosyQuebradasPriorizados_6);
+        function pop_Delimitacin_Microcuencas_Priorizadas_7(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Microcuenca</th>\
+                        <td class="visible-with-data" id="Microcuenc">' + (feature.properties['Microcuenc'] !== null ? autolinker.link(String(feature.properties['Microcuenc']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Área km2</th>\
+                        <td class="visible-with-data" id="Area__Km2_">' + (feature.properties['Area__Km2_'] !== null ? autolinker.link(String(feature.properties['Area__Km2_']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Delimitacin_Microcuencas_Priorizadas_7_0() {
+            return {
+                pane: 'pane_Delimitacin_Microcuencas_Priorizadas_7',
+                opacity: 1,
+                color: 'rgba(0,32,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Delimitacin_Microcuencas_Priorizadas_7');
+        map.getPane('pane_Delimitacin_Microcuencas_Priorizadas_7').style.zIndex = 407;
+        map.getPane('pane_Delimitacin_Microcuencas_Priorizadas_7').style['mix-blend-mode'] = 'normal';
+        var layer_Delimitacin_Microcuencas_Priorizadas_7 = new L.geoJson(json_Delimitacin_Microcuencas_Priorizadas_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Delimitacin_Microcuencas_Priorizadas_7',
+            layerName: 'layer_Delimitacin_Microcuencas_Priorizadas_7',
+            pane: 'pane_Delimitacin_Microcuencas_Priorizadas_7',
+            onEachFeature: pop_Delimitacin_Microcuencas_Priorizadas_7,
+            style: style_Delimitacin_Microcuencas_Priorizadas_7_0,
+        });
+        bounds_group.addLayer(layer_Delimitacin_Microcuencas_Priorizadas_7);
+        map.addLayer(layer_Delimitacin_Microcuencas_Priorizadas_7);
+        function pop_RosyQuebradasPriorizados_8(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RosyQuebradasPriorizados_8_0() {
+            return {
+                pane: 'pane_RosyQuebradasPriorizados_8',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,3,255,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_RosyQuebradasPriorizados_8');
+        map.getPane('pane_RosyQuebradasPriorizados_8').style.zIndex = 408;
+        map.getPane('pane_RosyQuebradasPriorizados_8').style['mix-blend-mode'] = 'normal';
+        var layer_RosyQuebradasPriorizados_8 = new L.geoJson(json_RosyQuebradasPriorizados_8, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RosyQuebradasPriorizados_8',
+            layerName: 'layer_RosyQuebradasPriorizados_8',
+            pane: 'pane_RosyQuebradasPriorizados_8',
+            onEachFeature: pop_RosyQuebradasPriorizados_8,
+            style: style_RosyQuebradasPriorizados_8_0,
+        });
+        bounds_group.addLayer(layer_RosyQuebradasPriorizados_8);
+        map.addLayer(layer_RosyQuebradasPriorizados_8);
+        function pop_SeccionesPriorizadasMCH_9(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_SeccionesPriorizadasMCH_9_0() {
+            return {
+                pane: 'pane_SeccionesPriorizadasMCH_9',
+                opacity: 1,
+                color: 'rgba(82,72,183,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 2.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SeccionesPriorizadasMCH_9');
+        map.getPane('pane_SeccionesPriorizadasMCH_9').style.zIndex = 409;
+        map.getPane('pane_SeccionesPriorizadasMCH_9').style['mix-blend-mode'] = 'normal';
+        var layer_SeccionesPriorizadasMCH_9 = new L.geoJson(json_SeccionesPriorizadasMCH_9, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SeccionesPriorizadasMCH_9',
+            layerName: 'layer_SeccionesPriorizadasMCH_9',
+            pane: 'pane_SeccionesPriorizadasMCH_9',
+            onEachFeature: pop_SeccionesPriorizadasMCH_9,
+            style: style_SeccionesPriorizadasMCH_9_0,
+        });
+        bounds_group.addLayer(layer_SeccionesPriorizadasMCH_9);
+        map.addLayer(layer_SeccionesPriorizadasMCH_9);
+        function pop_SeccionesPriorizadasMMA_10(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_SeccionesPriorizadasMMA_10_0() {
+            return {
+                pane: 'pane_SeccionesPriorizadasMMA_10',
+                opacity: 1,
+                color: 'rgba(255,153,0,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 2.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SeccionesPriorizadasMMA_10');
+        map.getPane('pane_SeccionesPriorizadasMMA_10').style.zIndex = 410;
+        map.getPane('pane_SeccionesPriorizadasMMA_10').style['mix-blend-mode'] = 'normal';
+        var layer_SeccionesPriorizadasMMA_10 = new L.geoJson(json_SeccionesPriorizadasMMA_10, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SeccionesPriorizadasMMA_10',
+            layerName: 'layer_SeccionesPriorizadasMMA_10',
+            pane: 'pane_SeccionesPriorizadasMMA_10',
+            onEachFeature: pop_SeccionesPriorizadasMMA_10,
+            style: style_SeccionesPriorizadasMMA_10_0,
+        });
+        bounds_group.addLayer(layer_SeccionesPriorizadasMMA_10);
+        map.addLayer(layer_SeccionesPriorizadasMMA_10);
+        function pop_SeccionesPriorizadasMMO_11(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_SeccionesPriorizadasMMO_11_0() {
+            return {
+                pane: 'pane_SeccionesPriorizadasMMO_11',
+                opacity: 1,
+                color: 'rgba(255,0,214,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 2.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SeccionesPriorizadasMMO_11');
+        map.getPane('pane_SeccionesPriorizadasMMO_11').style.zIndex = 411;
+        map.getPane('pane_SeccionesPriorizadasMMO_11').style['mix-blend-mode'] = 'normal';
+        var layer_SeccionesPriorizadasMMO_11 = new L.geoJson(json_SeccionesPriorizadasMMO_11, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SeccionesPriorizadasMMO_11',
+            layerName: 'layer_SeccionesPriorizadasMMO_11',
+            pane: 'pane_SeccionesPriorizadasMMO_11',
+            onEachFeature: pop_SeccionesPriorizadasMMO_11,
+            style: style_SeccionesPriorizadasMMO_11_0,
+        });
+        bounds_group.addLayer(layer_SeccionesPriorizadasMMO_11);
+        map.addLayer(layer_SeccionesPriorizadasMMO_11);
+        function pop_SeccionesPriorizadasMSP_12(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_SeccionesPriorizadasMSP_12_0() {
+            return {
+                pane: 'pane_SeccionesPriorizadasMSP_12',
+                opacity: 1,
+                color: 'rgba(160,255,0,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 2.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SeccionesPriorizadasMSP_12');
+        map.getPane('pane_SeccionesPriorizadasMSP_12').style.zIndex = 412;
+        map.getPane('pane_SeccionesPriorizadasMSP_12').style['mix-blend-mode'] = 'normal';
+        var layer_SeccionesPriorizadasMSP_12 = new L.geoJson(json_SeccionesPriorizadasMSP_12, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SeccionesPriorizadasMSP_12',
+            layerName: 'layer_SeccionesPriorizadasMSP_12',
+            pane: 'pane_SeccionesPriorizadasMSP_12',
+            onEachFeature: pop_SeccionesPriorizadasMSP_12,
+            style: style_SeccionesPriorizadasMSP_12_0,
+        });
+        bounds_group.addLayer(layer_SeccionesPriorizadasMSP_12);
+        map.addLayer(layer_SeccionesPriorizadasMSP_12);
+        function pop_PMCuerposPriorizadosMO_13(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PMCuerposPriorizadosMO_13_0() {
+            return {
+                pane: 'pane_PMCuerposPriorizadosMO_13',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(166,0,40,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_PMCuerposPriorizadosMO_13');
+        map.getPane('pane_PMCuerposPriorizadosMO_13').style.zIndex = 413;
+        map.getPane('pane_PMCuerposPriorizadosMO_13').style['mix-blend-mode'] = 'normal';
+        var layer_PMCuerposPriorizadosMO_13 = new L.geoJson(json_PMCuerposPriorizadosMO_13, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PMCuerposPriorizadosMO_13',
+            layerName: 'layer_PMCuerposPriorizadosMO_13',
+            pane: 'pane_PMCuerposPriorizadosMO_13',
+            onEachFeature: pop_PMCuerposPriorizadosMO_13,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_PMCuerposPriorizadosMO_13_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_PMCuerposPriorizadosMO_13);
+        map.addLayer(layer_PMCuerposPriorizadosMO_13);
+        function pop_PMCuerposPriorizadosSP_14(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PMCuerposPriorizadosSP_14_0() {
+            return {
+                pane: 'pane_PMCuerposPriorizadosSP_14',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(145,99,0,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_PMCuerposPriorizadosSP_14');
+        map.getPane('pane_PMCuerposPriorizadosSP_14').style.zIndex = 414;
+        map.getPane('pane_PMCuerposPriorizadosSP_14').style['mix-blend-mode'] = 'normal';
+        var layer_PMCuerposPriorizadosSP_14 = new L.geoJson(json_PMCuerposPriorizadosSP_14, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PMCuerposPriorizadosSP_14',
+            layerName: 'layer_PMCuerposPriorizadosSP_14',
+            pane: 'pane_PMCuerposPriorizadosSP_14',
+            onEachFeature: pop_PMCuerposPriorizadosSP_14,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_PMCuerposPriorizadosSP_14_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_PMCuerposPriorizadosSP_14);
+        map.addLayer(layer_PMCuerposPriorizadosSP_14);
+        function pop_PMCuerposPriorizadosMA_15(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PMCuerposPriorizadosMA_15_0() {
+            return {
+                pane: 'pane_PMCuerposPriorizadosMA_15',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,46,255,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_PMCuerposPriorizadosMA_15');
+        map.getPane('pane_PMCuerposPriorizadosMA_15').style.zIndex = 415;
+        map.getPane('pane_PMCuerposPriorizadosMA_15').style['mix-blend-mode'] = 'normal';
+        var layer_PMCuerposPriorizadosMA_15 = new L.geoJson(json_PMCuerposPriorizadosMA_15, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PMCuerposPriorizadosMA_15',
+            layerName: 'layer_PMCuerposPriorizadosMA_15',
+            pane: 'pane_PMCuerposPriorizadosMA_15',
+            onEachFeature: pop_PMCuerposPriorizadosMA_15,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_PMCuerposPriorizadosMA_15_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_PMCuerposPriorizadosMA_15);
+        map.addLayer(layer_PMCuerposPriorizadosMA_15);
+        function pop_PMCuerposPriorizadosCH_16(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td class="visible-with-data" id="nam">' + (feature.properties['nam'] !== null ? autolinker.link(String(feature.properties['nam']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Prioridad</th>\
+                        <td class="visible-with-data" id="Prioridad">' + (feature.properties['Prioridad'] !== null ? autolinker.link(String(feature.properties['Prioridad']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PMCuerposPriorizadosCH_16_0() {
+            return {
+                pane: 'pane_PMCuerposPriorizadosCH_16',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(229,0,255,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_PMCuerposPriorizadosCH_16');
+        map.getPane('pane_PMCuerposPriorizadosCH_16').style.zIndex = 416;
+        map.getPane('pane_PMCuerposPriorizadosCH_16').style['mix-blend-mode'] = 'normal';
+        var layer_PMCuerposPriorizadosCH_16 = new L.geoJson(json_PMCuerposPriorizadosCH_16, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PMCuerposPriorizadosCH_16',
+            layerName: 'layer_PMCuerposPriorizadosCH_16',
+            pane: 'pane_PMCuerposPriorizadosCH_16',
+            onEachFeature: pop_PMCuerposPriorizadosCH_16,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_PMCuerposPriorizadosCH_16_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_PMCuerposPriorizadosCH_16);
+        map.addLayer(layer_PMCuerposPriorizadosCH_16);
+        const url = {"Nominatim OSM": "https://nominatim.openstreetmap.org/search?format=geojson&addressdetails=1&",
+        "France BAN": "https://api-adresse.data.gouv.fr/search/?"}
+        var photonControl = L.control.photon({
+            url: url["Nominatim OSM"],
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true,
+            // resultsHandler: myHandler,
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius="10px"
+        // Create a variable to store the geoJSON data
+        var x = null;
+        // Create a variable to store the marker
+        var marker = null;
+        // Add an event listener to the Photon control to create a marker from the returned geoJSON data
+        var z = null;
+        photonControl.on('selected', function(e) {
+            console.log(photonControl.search.resultsContainer);
+            if (x != null) {
+                map.removeLayer(obj3.marker);
+                map.removeLayer(x);
+            }
+            obj2.gcd = e.choice;
+            x = L.geoJSON(obj2.gcd).addTo(map);
+            var label = typeof obj2.gcd.properties.label === 'undefined' ? obj2.gcd.properties.display_name : obj2.gcd.properties.label;
+            obj3.marker = L.marker(x.getLayers()[0].getLatLng()).bindPopup(label).addTo(map);
+            map.setView(x.getLayers()[0].getLatLng(), 17);
+            z = typeof e.choice.properties.label === 'undefined'? e.choice.properties.display_name : e.choice.properties.label;
+            console.log(e);
+            e.target.input.value = z;
+        });
+        var search = document.getElementsByClassName("leaflet-photon leaflet-control")[0];
+        search.classList.add("leaflet-control-search")
+        search.style.display = "flex";
+        search.style.backgroundColor="rgba(255,255,255,0.5)" 
+
+        // Create the new button element
+        var button = document.createElement("div");
+        button.id = "gcd-button-control";
+        button.className = "gcd-gl-btn fa fa-search search-button";
+
+        // Insert the button at the beginning of the search control
+        search.insertBefore(button, search.firstChild);
+        last = search.lastChild;
+        last.style.display = "none";
+        button.addEventListener("click", function (e) {
+            if (last.style.display === "none") {
+                last.style.display = "block";
+            } else {
+                last.style.display = "none";
+            }
+        });
+        var overlaysTree = [
+            {label: '<img src="legend/PMCuerposPriorizadosCH_16.png" /> PM Cuerpos Priorizados CH', layer: layer_PMCuerposPriorizadosCH_16},
+            {label: '<img src="legend/PMCuerposPriorizadosMA_15.png" /> PM Cuerpos Priorizados MA', layer: layer_PMCuerposPriorizadosMA_15},
+            {label: '<img src="legend/PMCuerposPriorizadosSP_14.png" /> PM Cuerpos Priorizados SP', layer: layer_PMCuerposPriorizadosSP_14},
+            {label: '<img src="legend/PMCuerposPriorizadosMO_13.png" /> PM Cuerpos Priorizados MO', layer: layer_PMCuerposPriorizadosMO_13},
+            {label: '<img src="legend/SeccionesPriorizadasMSP_12.png" /> Secciones Priorizadas MSP', layer: layer_SeccionesPriorizadasMSP_12},
+            {label: '<img src="legend/SeccionesPriorizadasMMO_11.png" /> Secciones Priorizadas MMO', layer: layer_SeccionesPriorizadasMMO_11},
+            {label: '<img src="legend/SeccionesPriorizadasMMA_10.png" /> Secciones Priorizadas MMA', layer: layer_SeccionesPriorizadasMMA_10},
+            {label: '<img src="legend/SeccionesPriorizadasMCH_9.png" /> Secciones Priorizadas MCH', layer: layer_SeccionesPriorizadasMCH_9},
+            {label: '<img src="legend/RosyQuebradasPriorizados_8.png" /> Ríos y Quebradas Priorizados', layer: layer_RosyQuebradasPriorizados_8},
+            {label: '<img src="legend/Delimitacin_Microcuencas_Priorizadas_7.png" /> Delimitación_Microcuencas_Priorizadas', layer: layer_Delimitacin_Microcuencas_Priorizadas_7},
+            {label: '<img src="legend/RosyQuebradasPriorizados_6.png" /> Ríos y Quebradas Priorizados', layer: layer_RosyQuebradasPriorizados_6},
+            {label: 'Zonificación Microcuenca Machángara<br /><table><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMachngara_5_ALTA0.png" /></td><td>ALTA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMachngara_5_MEDIA1.png" /></td><td>MEDIA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMachngara_5_BAJA2.png" /></td><td>BAJA</td></tr></table>', layer: layer_ZonificacinMicrocuencaMachngara_5},
+            {label: 'Zonificación Microcuenca Monjas<br /><table><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMonjas_4_ALTA0.png" /></td><td>ALTA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMonjas_4_MEDIA1.png" /></td><td>MEDIA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaMonjas_4_BAJA2.png" /></td><td>BAJA</td></tr></table>', layer: layer_ZonificacinMicrocuencaMonjas_4},
+            {label: 'Zonificación Microcuenca Rio Chiche<br /><table><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRioChiche_3_ALTA0.png" /></td><td>ALTA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRioChiche_3_MEDIA1.png" /></td><td>MEDIA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRioChiche_3_BAJA2.png" /></td><td>BAJA</td></tr></table>', layer: layer_ZonificacinMicrocuencaRioChiche_3},
+            {label: 'Zonificación Microcuenca Río San Pedro<br /><table><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRoSanPedro_2_ALTA0.png" /></td><td>ALTA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRoSanPedro_2_MEDIA1.png" /></td><td>MEDIA</td></tr><tr><td style="text-align: center;"><img src="legend/ZonificacinMicrocuencaRoSanPedro_2_BAJA2.png" /></td><td>BAJA</td></tr></table>', layer: layer_ZonificacinMicrocuencaRoSanPedro_2},
+            {label: "Esri Satelite", layer: layer_EsriSatelite_1, radioGroup: 'bm' },
+            {label: "OpenStreetMap", layer: layer_OpenStreetMap_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var i = 0;
+        layer_Delimitacin_Microcuencas_Priorizadas_7.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Microcuenc'] !== null?String('<div style="color: #0001ff; font-size: 10pt; font-family: \'Arial\', sans-serif;">' + layer.feature.properties['Microcuenc']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Delimitacin_Microcuencas_Priorizadas_7'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        resetLabels([layer_Delimitacin_Microcuencas_Priorizadas_7,layer_RosyQuebradasPriorizados_8]);
+        map.on("zoomend", function(){
+            resetLabels([layer_Delimitacin_Microcuencas_Priorizadas_7,layer_RosyQuebradasPriorizados_8]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_Delimitacin_Microcuencas_Priorizadas_7,layer_RosyQuebradasPriorizados_8]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_Delimitacin_Microcuencas_Priorizadas_7,layer_RosyQuebradasPriorizados_8]);
+        });
+        </script>        
+    </body>
+</html>
